@@ -1,0 +1,32 @@
+[
+  {
+    "id": "owasp-llm",
+    "name": "OWASP LLM Top 10",
+    "url": "https://owasp.org/www-project-top-10-for-large-language-model-applications/",
+    "description": "Industry-standard LLM risk categories for scoped engagements"
+  },
+  {
+    "id": "mitre-atlas",
+    "name": "MITRE ATLAS",
+    "url": "https://atlas.mitre.org/",
+    "description": "Adversarial ML tactics and techniques mapping"
+  },
+  {
+    "id": "garak",
+    "name": "Garak (NVIDIA)",
+    "url": "https://github.com/NVIDIA/garak",
+    "description": "Published LLM vulnerability probe patterns"
+  },
+  {
+    "id": "promptfoo",
+    "name": "Promptfoo",
+    "url": "https://github.com/promptfoo/promptfoo",
+    "description": "Adversarial evaluation and red team eval patterns"
+  },
+  {
+    "id": "nist-ai",
+    "name": "NIST AI RMF",
+    "url": "https://www.nist.gov/itl/ai-risk-management-framework",
+    "description": "Risk management framing for purple team reporting"
+  }
+]
