@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import random
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,9 +13,32 @@ import yaml
 from config import bundled_data_dir, user_data_dir
 from library_update import load_update_meta
 
-MAX_PROMPTS = 50
 FILTER_ALL = "All Categories"
 TeamMode = Literal["red", "purple"]
+
+# Higher = ranked first in output (OWASP LLM01 direct injection → indirect → probes).
+_EFFECTIVENESS_BY_STEM: dict[str, int] = {
+    "prefix_injection": 100,
+    "instructions": 99,
+    "owasp_prompt_injection": 98,
+    "style_injection": 97,
+    "text_continuation": 96,
+    "refusal_suppression": 95,
+    "role_play": 94,
+    "garak_probe_dan": 93,
+    "hypothetical_response": 92,
+    "security_researcher": 91,
+    "code_nesting": 88,
+    "table_nesting": 87,
+    "wikipedia_with_title": 86,
+    "garak_encoding": 82,
+    "cipher_chat": 81,
+    "three_liner": 80,
+    "promptfoo_adversarial": 75,
+    "owasp_excessive_agency": 70,
+    "aligned": 65,
+    "complex": 60,
+}
 
 PURPLE_TEAM_NOTE = (
     "Purple team: record model response, map finding to OWASP LLM / MITRE ATLAS, "
@@ -64,6 +86,21 @@ def _discover_templates() -> List[tuple[Path, dict]]:
     return list(by_stem.values())
 
 
+def _template_effectiveness(path: Path, data: dict) -> int:
+    if data.get("effectiveness") is not None:
+        return int(data["effectiveness"])
+    return _EFFECTIVENESS_BY_STEM.get(path.stem, 50)
+
+
+def _sort_templates_by_effectiveness(templates: List[tuple[Path, dict]]) -> None:
+    templates.sort(
+        key=lambda item: (
+            -_template_effectiveness(item[0], item[1]),
+            str(item[1].get("name") or item[0].stem).lower(),
+        )
+    )
+
+
 def _repo_label(data: dict, path: Path) -> str:
     source = str(data.get("source") or "")
     name = path.stem.lower()
@@ -98,7 +135,7 @@ def load_repositories() -> list:
 
 def generate_prompt_ideas(
     context: str,
-    limit: int = MAX_PROMPTS,
+    limit: int | None = None,
     team_mode: TeamMode = "red",
     category_filter: str = FILTER_ALL,
 ) -> List[PromptIdea]:
@@ -117,8 +154,8 @@ def generate_prompt_ideas(
     if not templates:
         return []
 
-    random.shuffle(templates)
-    selected = templates[: min(limit, len(templates), MAX_PROMPTS)]
+    _sort_templates_by_effectiveness(templates)
+    selected = templates if limit is None else templates[:limit]
 
     ideas: List[PromptIdea] = []
     for idx, (path, data) in enumerate(selected, start=1):
@@ -182,6 +219,6 @@ def engine_status(team_mode: TeamMode = "red", category_filter: str = FILTER_ALL
     mode = "Red Team" if team_mode == "red" else "Purple Team"
     filt = f" | Filter: {category_filter}" if category_filter != FILTER_ALL else ""
     return (
-        f"{mode} mode | {len(templates)} techniques | Prompts: maximum= {MAX_PROMPTS}"
+        f"{mode} mode | {len(templates)} techniques | Prompts: all available (most effective first)"
         f"{filt}{_library_sync_hint()} | Standalone library"
     )

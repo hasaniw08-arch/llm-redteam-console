@@ -14,7 +14,6 @@ from library_update import update_library
 from network_info import collect_network_info
 from prompt_engine import (
     FILTER_ALL,
-    MAX_PROMPTS,
     engine_status,
     format_prompt_output,
     generate_prompt_ideas,
@@ -535,7 +534,7 @@ class SaaSApp(tk.Tk):
         self._themed_widgets.append((btn_row, {"bg": "card"}))
         self._action_button(
             btn_row,
-            f"Prompts: maximum= {MAX_PROMPTS}  [Ctrl+G]",
+            "Prompts: all available  [Ctrl+G]",
             self._generate,
             variant="primary",
             side=tk.LEFT,
@@ -689,7 +688,7 @@ class SaaSApp(tk.Tk):
         self._set_readonly(self.output_text, "Generating prompt ideas...")
 
         def work() -> None:
-            ideas = generate_prompt_ideas(context, limit=MAX_PROMPTS, team_mode=mode, category_filter=category)
+            ideas = generate_prompt_ideas(context, team_mode=mode, category_filter=category)
             output = format_prompt_output(ideas, team_mode=mode)
             status = engine_status(mode, category)
             self.after(0, lambda: self._on_generated(output, status))
