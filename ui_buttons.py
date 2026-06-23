@@ -170,6 +170,7 @@ class AppButton(tk.Frame):
         self._theme = theme
         self._variant = variant
         self._hover = False
+        self._enabled = True
 
         if variant == "primary":
             bg = theme["btn_action_primary"]
@@ -221,7 +222,14 @@ class AppButton(tk.Frame):
         self._paint()
 
     def _on_click(self, _event: object = None) -> None:
-        self._command()
+        if self._enabled:
+            self._command()
+
+    def set_enabled(self, enabled: bool) -> None:
+        self._enabled = enabled
+        cursor = "hand2" if enabled else "arrow"
+        self.configure(cursor=cursor)
+        self._label.configure(fg=self._fg if enabled else self._theme["muted"])
 
     def apply_theme(self, theme: dict) -> None:
         self._theme = theme
@@ -298,6 +306,11 @@ class FilterSelect(tk.Frame):
             )
         self._display.configure(fg=theme["text"])
         self._arrow.configure(fg=theme["muted"])
+
+    def set_values(self, values: list[str]) -> None:
+        self._values = values
+        if self._variable.get() not in values and values:
+            self._variable.set(values[0])
 
     def _toggle_menu(self, _event: object = None) -> None:
         if self._menu and self._open:

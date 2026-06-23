@@ -1,0 +1,27 @@
+{
+  "version": "1.1.0",
+  "updated": "2026-06-16",
+  "files": [
+    "repositories.json",
+    "templates/aligned.yaml",
+    "templates/cipher_chat.yaml",
+    "templates/code_nesting.yaml",
+    "templates/complex.yaml",
+    "templates/garak_encoding.yaml",
+    "templates/garak_probe_dan.yaml",
+    "templates/hypothetical_response.yaml",
+    "templates/instructions.yaml",
+    "templates/owasp_excessive_agency.yaml",
+    "templates/owasp_prompt_injection.yaml",
+    "templates/prefix_injection.yaml",
+    "templates/promptfoo_adversarial.yaml",
+    "templates/refusal_suppression.yaml",
+    "templates/role_play.yaml",
+    "templates/security_researcher.yaml",
+    "templates/style_injection.yaml",
+    "templates/table_nesting.yaml",
+    "templates/text_continuation.yaml",
+    "templates/three_liner.yaml",
+    "templates/wikipedia_with_title.yaml"
+  ]
+}

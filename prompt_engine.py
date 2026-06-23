@@ -11,7 +11,10 @@ from typing import List, Literal, Optional
 
 import yaml
 
-MAX_PROMPTS = 20
+from config import bundled_data_dir, user_data_dir
+from library_update import load_update_meta
+
+MAX_PROMPTS = 50
 FILTER_ALL = "All Categories"
 TeamMode = Literal["red", "purple"]
 
@@ -32,22 +35,6 @@ class PromptIdea:
     text: str
 
 
-def _app_root() -> Path:
-    import sys
-
-    if getattr(sys, "frozen", False):
-        return Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
-    return Path(__file__).resolve().parent
-
-
-def _resource_root() -> Path:
-    import sys
-
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent
-    return Path(__file__).resolve().parent
-
-
 def _load_yaml_template(path: Path) -> Optional[dict]:
     try:
         with path.open(encoding="utf-8") as fh:
@@ -65,16 +52,16 @@ def _render_template_value(value: str, context: str) -> str:
 
 
 def _discover_templates() -> List[tuple[Path, dict]]:
-    found: List[tuple[Path, dict]] = []
-    bundled = _app_root() / "data" / "templates"
-    if not bundled.is_dir():
-        return found
-
-    for path in sorted(bundled.glob("*.yaml")):
-        data = _load_yaml_template(path)
-        if data and data.get("value"):
-            found.append((path, data))
-    return found
+    by_stem: dict[str, tuple[Path, dict]] = {}
+    for root in (bundled_data_dir(), user_data_dir()):
+        template_dir = root / "templates"
+        if not template_dir.is_dir():
+            continue
+        for path in sorted(template_dir.glob("*.yaml")):
+            data = _load_yaml_template(path)
+            if data and data.get("value"):
+                by_stem[path.stem] = (path, data)
+    return list(by_stem.values())
 
 
 def _repo_label(data: dict, path: Path) -> str:
@@ -101,10 +88,11 @@ def list_category_filters() -> List[str]:
 
 
 def load_repositories() -> list:
-    repo_file = _app_root() / "data" / "repositories.json"
-    if repo_file.is_file():
-        with repo_file.open(encoding="utf-8") as fh:
-            return json.load(fh)
+    for root in (user_data_dir(), bundled_data_dir()):
+        repo_file = root / "repositories.json"
+        if repo_file.is_file():
+            with repo_file.open(encoding="utf-8") as fh:
+                return json.load(fh)
     return []
 
 
@@ -180,8 +168,20 @@ def format_prompt_output(ideas: List[PromptIdea], team_mode: TeamMode = "red") -
     return "\n".join(lines).strip()
 
 
+def _library_sync_hint() -> str:
+    meta = load_update_meta()
+    if not meta:
+        return ""
+    source = meta.get("source") or "unknown"
+    version = meta.get("version") or "?"
+    return f" | Library: {source} v{version}"
+
+
 def engine_status(team_mode: TeamMode = "red", category_filter: str = FILTER_ALL) -> str:
     templates = _discover_templates()
     mode = "Red Team" if team_mode == "red" else "Purple Team"
     filt = f" | Filter: {category_filter}" if category_filter != FILTER_ALL else ""
-    return f"{mode} mode | {len(templates)} techniques{filt} | Standalone library"
+    return (
+        f"{mode} mode | {len(templates)} techniques | Prompts: maximum= {MAX_PROMPTS}"
+        f"{filt}{_library_sync_hint()} | Standalone library"
+    )

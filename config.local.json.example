@@ -1,0 +1,6 @@
+{
+  "lan_feed_url": "http://192.168.1.100:8080/llm-redteam/data/feed.json",
+  "github_feed_url": "https://raw.githubusercontent.com/hasaniw08-arch/llm-redteam-console/main/data/feed.json",
+  "allow_lan_only_updates": true,
+  "update_timeout_seconds": 20
+}

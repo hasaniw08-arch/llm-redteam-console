@@ -9,6 +9,8 @@ from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog, messagebox, scrolledtext
 
+from config import load_config
+from library_update import update_library
 from network_info import collect_network_info
 from prompt_engine import (
     FILTER_ALL,
@@ -406,7 +408,18 @@ class SaaSApp(tk.Tk):
         self._card_wraps.append(net_wrap)
         self.network_text = self._text_widget(net_body, height=20, readonly=True)
         self.network_text.pack(fill=tk.BOTH, expand=True)
-        self._action_button(net_body, "Refresh network", self._refresh_network, variant="ghost", fill=tk.X, pady=(10, 0))
+        net_btn_row = tk.Frame(net_body, bg=self._theme["card"])
+        net_btn_row.pack(fill=tk.X, pady=(10, 0))
+        self._themed_widgets.append((net_btn_row, {"bg": "card"}))
+        self._action_button(net_btn_row, "Refresh network", self._refresh_network, variant="ghost", side=tk.LEFT)
+        self._update_library_btn = self._action_button(
+            net_btn_row,
+            "Update library (LAN → GitHub)",
+            self._update_library,
+            variant="primary",
+            side=tk.LEFT,
+            padx=(8, 0),
+        )
 
         right = tk.Frame(body, bg=self._theme["bg"])
         right.grid(row=0, column=1, sticky="nsew")
@@ -451,7 +464,7 @@ class SaaSApp(tk.Tk):
         self._themed_widgets.append((btn_row, {"bg": "card"}))
         self._action_button(
             btn_row,
-            f"Generate prompts (max {MAX_PROMPTS})  [Ctrl+G]",
+            f"Prompts: maximum= {MAX_PROMPTS}  [Ctrl+G]",
             self._generate,
             variant="primary",
             side=tk.LEFT,
@@ -546,6 +559,47 @@ class SaaSApp(tk.Tk):
             self.after(0, lambda: self._set_readonly(self.network_text, text))
 
         threading.Thread(target=work, daemon=True).start()
+
+    def _refresh_repository_chips(self) -> None:
+        for chip in self._chips:
+            chip.destroy()
+        self._chips.clear()
+        self._chip_grid.destroy()
+        repo_names = [r["name"] for r in load_repositories()]
+        self._chip_grid = self._build_chip_grid(self._chip_grid_frame, repo_names, columns=3)
+        self._chip_grid.pack(anchor="w")
+
+    def _refresh_technique_filters(self) -> None:
+        filters = list_category_filters()
+        self._filter_select.set_values(filters)
+        if self.category_filter.get() not in filters:
+            self.category_filter.set(filters[0] if filters else FILTER_ALL)
+
+    def _update_library(self) -> None:
+        if hasattr(self, "_update_library_btn"):
+            self._update_library_btn.set_enabled(False)
+        self._flash_status("Updating library (LAN → GitHub)...", restore_after_ms=0)
+
+        def work() -> None:
+            snap = collect_network_info()
+            result = update_library(load_config(), network=snap)
+            self.after(0, lambda: self._on_library_updated(result))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _on_library_updated(self, result) -> None:
+        if hasattr(self, "_update_library_btn"):
+            self._update_library_btn.set_enabled(True)
+        if result.ok:
+            self._refresh_repository_chips()
+            self._refresh_technique_filters()
+            self._apply_theme(self.team_mode.get())
+            self._flash_status(result.message)
+            messagebox.showinfo("Library updated", result.message, parent=self)
+        else:
+            self._flash_status(result.message, 6000)
+            messagebox.showwarning("Library update failed", result.message, parent=self)
+        self._update_status()
 
     def _generate(self) -> None:
         context = self._target_context()

@@ -18,4 +18,5 @@ Thumbs.db
 desktop.ini
 
 # Local config
+config.local.json
 *.log
