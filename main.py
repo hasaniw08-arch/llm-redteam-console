@@ -35,8 +35,8 @@ class SaaSApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("LLM Red / Purple Team Workbench")
-        self.geometry("1240x880")
-        self.minsize(1000, 720)
+        self.geometry("1200x820")
+        self.minsize(820, 560)
 
         self.team_mode = tk.StringVar(value="red")
         self.category_filter = tk.StringVar(value=FILTER_ALL)
@@ -266,8 +266,76 @@ class SaaSApp(tk.Tk):
         self._filter_label.configure(bg=t["surface"], fg=t["text"])
         if hasattr(self, "_toggle_row"):
             self._toggle_row.configure(bg=t["surface"])
+        if hasattr(self, "_scroll_container"):
+            self._scroll_container.configure(bg=t["bg"])
+            self._scroll_canvas.configure(bg=t["bg"])
+            self._scroll_inner.configure(bg=t["bg"])
         self._update_status()
         self._update_window_title()
+        self._refresh_scroll_region()
+
+    def _setup_main_scroll(self) -> None:
+        theme = get_theme("red")
+        self._scroll_container = tk.Frame(self, bg=theme["bg"])
+        self._scroll_container.pack(fill=tk.BOTH, expand=True)
+
+        self._scroll_canvas = tk.Canvas(
+            self._scroll_container,
+            bg=theme["bg"],
+            highlightthickness=0,
+            borderwidth=0,
+        )
+        self._scroll_bar = tk.Scrollbar(
+            self._scroll_container,
+            orient=tk.VERTICAL,
+            command=self._scroll_canvas.yview,
+        )
+        self._scroll_inner = tk.Frame(self._scroll_canvas, bg=theme["bg"])
+        self._scroll_window = self._scroll_canvas.create_window((0, 0), window=self._scroll_inner, anchor="nw")
+
+        self._scroll_inner.bind("<Configure>", lambda _e: self._refresh_scroll_region())
+        self._scroll_canvas.bind("<Configure>", self._on_scroll_canvas_configure)
+        self._scroll_canvas.configure(yscrollcommand=self._scroll_bar.set)
+
+        self._scroll_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self._scroll_bar.pack(side=tk.RIGHT, fill=tk.Y)
+
+    def _bind_vertical_scroll(self, widget: tk.Widget) -> None:
+        def _on_wheel(event: tk.Event) -> None:
+            if event.delta:
+                self._scroll_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            elif getattr(event, "num", None) == 4:
+                self._scroll_canvas.yview_scroll(-1, "units")
+            elif getattr(event, "num", None) == 5:
+                self._scroll_canvas.yview_scroll(1, "units")
+
+        def _bind(_event: object = None) -> None:
+            widget.bind_all("<MouseWheel>", _on_wheel)
+            widget.bind_all("<Button-4>", _on_wheel)
+            widget.bind_all("<Button-5>", _on_wheel)
+
+        def _unbind(_event: object = None) -> None:
+            widget.unbind_all("<MouseWheel>")
+            widget.unbind_all("<Button-4>")
+            widget.unbind_all("<Button-5>")
+
+        widget.bind("<Enter>", _bind)
+        widget.bind("<Leave>", _unbind)
+
+    def _refresh_scroll_region(self) -> None:
+        if hasattr(self, "_scroll_canvas"):
+            self._scroll_canvas.update_idletasks()
+            self._scroll_canvas.configure(scrollregion=self._scroll_canvas.bbox("all"))
+
+    def _on_scroll_canvas_configure(self, event: tk.Event) -> None:
+        self._scroll_canvas.itemconfigure(self._scroll_window, width=event.width)
+
+    def _bind_scroll_recursive(self, widget: tk.Widget) -> None:
+        if isinstance(widget, scrolledtext.ScrolledText):
+            return
+        self._bind_vertical_scroll(widget)
+        for child in widget.winfo_children():
+            self._bind_scroll_recursive(child)
 
     def _set_mode(self, mode: str) -> None:
         self.team_mode.set(mode)
@@ -281,7 +349,10 @@ class SaaSApp(tk.Tk):
         self._update_status()
 
     def _build_ui(self) -> None:
-        self._hero = tk.Frame(self, bg=get_theme("red")["banner"], height=88)
+        self._setup_main_scroll()
+        root = self._scroll_inner
+
+        self._hero = tk.Frame(root, bg=get_theme("red")["banner"], height=88)
         self._hero.pack(fill=tk.X)
         self._hero_stripe = tk.Frame(self._hero, bg=get_theme("red")["banner_accent"], height=3)
         self._hero_stripe.pack(fill=tk.X, side=tk.BOTTOM)
@@ -326,7 +397,7 @@ class SaaSApp(tk.Tk):
         )
         self._subtitle_lbl.pack(anchor="w", pady=(8, 0))
 
-        self._surface = tk.Frame(self, bg=get_theme("red")["surface"], padx=24, pady=14)
+        self._surface = tk.Frame(root, bg=get_theme("red")["surface"], padx=24, pady=14)
         self._surface.pack(fill=tk.X)
 
         mode_row = tk.Frame(self._surface, bg=get_theme("red")["surface"])
@@ -396,7 +467,7 @@ class SaaSApp(tk.Tk):
         )
         self._status_lbl.pack(anchor="w", pady=(8, 0))
 
-        body = tk.Frame(self, bg=get_theme("red")["bg"], padx=24, pady=8)
+        body = tk.Frame(root, bg=get_theme("red")["bg"], padx=24, pady=8)
         body.pack(fill=tk.BOTH, expand=True)
         self._body = body
         body.columnconfigure(0, weight=1, minsize=300)
@@ -485,7 +556,7 @@ class SaaSApp(tk.Tk):
         self.output_text.pack(fill=tk.BOTH, expand=True)
         self._set_readonly(self.output_text, "Select mode, set filter, enter target context, then generate.")
 
-        self._footer = tk.Frame(self, bg=get_theme("red")["bg"], padx=24, pady=10)
+        self._footer = tk.Frame(root, bg=get_theme("red")["bg"], padx=24, pady=10)
         self._footer.pack(fill=tk.X)
         self._footer_lbl = tk.Label(
             self._footer,
@@ -498,6 +569,8 @@ class SaaSApp(tk.Tk):
             font=("Segoe UI", 9),
         )
         self._footer_lbl.pack(anchor="w")
+        self._bind_scroll_recursive(self._scroll_inner)
+        self._refresh_scroll_region()
 
     def _clear_target_hint(self, _event: object = None) -> None:
         if self._target_has_hint:
@@ -568,6 +641,8 @@ class SaaSApp(tk.Tk):
         repo_names = [r["name"] for r in load_repositories()]
         self._chip_grid = self._build_chip_grid(self._chip_grid_frame, repo_names, columns=3)
         self._chip_grid.pack(anchor="w")
+        self._bind_scroll_recursive(self._chip_grid_frame)
+        self._refresh_scroll_region()
 
     def _refresh_technique_filters(self) -> None:
         filters = list_category_filters()
@@ -600,6 +675,7 @@ class SaaSApp(tk.Tk):
             self._flash_status(result.message, 6000)
             messagebox.showwarning("Library update failed", result.message, parent=self)
         self._update_status()
+        self._refresh_scroll_region()
 
     def _generate(self) -> None:
         context = self._target_context()
